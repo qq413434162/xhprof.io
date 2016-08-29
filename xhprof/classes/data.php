@@ -136,18 +136,19 @@ class Data
 		{
 			throw new DataException('XHProf.io cannot function in a server environment that does not define REQUEST_METHOD, HTTP_HOST or REQUEST_URI.');
 		}
-		
-		$sth	= $this->db->prepare("
-			(SELECT 'method_id', `id` FROM `request_methods` WHERE `method` = :method LIMIT 1)
-			UNION ALL
-			(SELECT 'host_id', `id` FROM `request_hosts` WHERE `host` = :host LIMIT 1)
-			UNION ALL
-			(SELECT 'uri_id', `id` FROM `request_uris` WHERE `uri` = :uri LIMIT 1);");
-		
-		$sth->execute(array('method' => $_SERVER['REQUEST_METHOD'], 'host' => $_SERVER['HTTP_HOST'], 'uri' => $_SERVER['REQUEST_URI']));
-		
-		$request	= $sth->fetchAll(PDO::FETCH_KEY_PAIR);
-
+        $request = array();
+        $data = $this->db->query("SELECT `id` FROM `request_methods` WHERE `method` = '" . $_SERVER['REQUEST_METHOD'] . "' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if (isset($data['id']) && $data['id'] > 0) {
+            $request['method_id'] =  $data['id'];
+        }
+        $data = $this->db->query("SELECT `id` FROM `request_hosts` WHERE `host` = '" . $_SERVER['HTTP_HOST'] . "' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if (isset($data['id']) && $data['id'] > 0) {
+            $request['host_id'] =  $data['id'];
+        }
+        $data = $this->db->query("SELECT `id` FROM `request_uris` WHERE `uri` = '" . $_SERVER['REQUEST_URI'] . "' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if (isset($data['id']) && $data['id'] > 0) {
+            $request['uri_id'] =  $data['id'];
+        }
 		if(!isset($request['method_id']))
 		{
 			$this->db
@@ -186,9 +187,10 @@ class Data
 		
 		$request_id	= $this->db->lastInsertId();
 		
-		$sth1		= $this->db->prepare("INSERT INTO `calls` SET `request_id` = :request_id, `ct` = :ct, `wt` = :wt, `cpu` = :cpu, `mu` = :mu, `pmu` = :pmu, `caller_id` = :caller_id, `callee_id` = :callee_id;");
+			
 		$sth2		= $this->db->prepare("SELECT `id` FROM `players` WHERE `name` = :name LIMIT 1;");
 		$sth3		= $this->db->prepare("INSERT INTO `players` SET `name` = :name;");
+		$sth1		= $this->db->prepare("INSERT INTO `calls` SET `request_id` = :request_id, `ct` = :ct, `wt` = :wt, `cpu` = :cpu, `mu` = :mu, `pmu` = :pmu, `caller_id` = :caller_id, `callee_id` = :callee_id;");
 		
 		foreach($xhprof_data as $call => $data)
 		{
@@ -198,7 +200,7 @@ class Data
 			$sth1->bindValue(':cpu', $data['cpu'], PDO::PARAM_INT);
 			$sth1->bindValue(':mu', $data['mu'], PDO::PARAM_INT);
 			$sth1->bindValue(':pmu', $data['pmu'], PDO::PARAM_INT);
-			
+            
 			$call	= explode('==>', $call);
 						
 			if(count($call) == 1)
